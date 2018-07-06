@@ -6,11 +6,14 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public abstract class AbstractCustomScrollLayout : MonoBehaviour {
+public abstract class AbstractCustomScrollLayout : MonoBehaviour
+{
     [Header("ScrollRect Content Container")]
     public GameObject contentView;
     [Header("ScrollRect Magnetic")]
     public bool IsMagnetic;
+    [Header("Initialize on Start")]
+    public bool InitOnStart = false;
 
     protected bool IsVertical;
     protected RectTransform contentViewRect;
@@ -27,18 +30,21 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour {
     private float contentViewSize;
     private float childSize;
     private float spacing = 0.0f;
+    private float dest = 0.0f;
+
     public float[] childDistance;
     public float[] childReposition;
     private RectTransform[] childs;
 
     // Use this for initialization
-    void Start() {
+    void Start()
+    {
         selfRect = gameObject.GetComponent<RectTransform>();
         scrollRect = gameObject.GetComponent<ScrollRect>();
         eventTrigger = gameObject.GetComponent<EventTrigger>();
 
         if (scrollRect == null)
-        { 
+        {
             Debug.LogError("ScrollRect is empty");
         }
         else
@@ -54,7 +60,8 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour {
         }
         else
         {
-            StartCoroutine(Initialize());
+            if (InitOnStart)
+                StartCoroutine(Initialize());
         }
 
         if (eventTrigger == null)
@@ -76,8 +83,6 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour {
 
             for (int i = 0; i < len; ++i)
             {
-                float dest = (contentViewSize - scrollSize);
-
                 /*if (notUseLayout)
                 {
                     dest = 3000.0f;
@@ -92,15 +97,12 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour {
                     IncreaseVector(ref vector, childLen * childSize);
                     childs[i].anchoredPosition = vector;
                 }
-                else if (childReposition[i] < dest * -1.0f)
+
+                if (childReposition[i] < dest * -1)
                 {
                     var vector = childs[i].anchoredPosition;
                     DecreaseVector(ref vector, childLen * childSize);
                     childs[i].anchoredPosition = vector;
-                }
-                else
-                {
-                    // do nothing
                 }
             }
 
@@ -167,9 +169,10 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour {
         // Assign Content Container's childlen
         RefreshContentChilds();
 
-        if (childLen > 0)
+        if (childLen > 1)
         {
             childSize = GetRectSize(childs[0].rect);
+            //childSize = Mathf.Abs(GetValue(childs[1].anchoredPosition) - GetValue(childs[0].anchoredPosition));
 
             if (childSize <= 0.0f)
             {
@@ -205,13 +208,16 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour {
                     Instantiate(clones[i], contentView.transform);
                     childLen++;
                 }
-                yield return new WaitForEndOfFrame();
             }
 
             RefreshContentChilds();
         }
 
-        ResetPivotAndPosition();
+        yield return new WaitForEndOfFrame();
+
+        var v = Camera.main.ScreenToWorldPoint(contentViewRect.rect.size);
+        dest = GetValue(v) / 3;
+        //ResetPivotAndPosition();
     }
     #endregion
 
