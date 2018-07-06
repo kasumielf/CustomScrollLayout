@@ -6,7 +6,13 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public abstract class AbstractCustomScrollLayout : MonoBehaviour
+[Serializable]
+public class OnFocusEvent : UnityEvent<int>
+{
+    public OnFocusEvent() { }
+}
+
+public abstract class AbstractCustomScrollLayout : MonoBehaviour, IEventSystemHandler
 {
     [Header("ScrollRect Content Container")]
     public GameObject contentView;
@@ -14,6 +20,8 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
     public bool IsMagnetic;
     [Header("Initialize on Start")]
     public bool InitOnStart = false;
+    [SerializeField]
+    public OnFocusEvent onFocusedEvent;
 
     protected bool IsVertical;
     protected RectTransform contentViewRect;
@@ -29,8 +37,9 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
     private int childLen;
     private float contentViewSize;
     private float childSize;
+    private float childWorldSize;
     private float spacing = 0.0f;
-    private float dest = 0.0f;
+    public float dest = 0.0f;
 
     public float[] childDistance;
     public float[] childReposition;
@@ -115,13 +124,14 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
                     if (minDistance == childDistance[j])
                     {
                         minIndex = j;
-                        break;
+                        onFocusedEvent.Invoke(minIndex);
                     }
                 }
 
                 if (onDrag == false)
                 {
-                    LerpToPosition(((GetValue(childs[minIndex].anchoredPosition) + (childSize - spacing) / 2)) * -1.0f);
+                    float v = GetValue(childs[minIndex].anchoredPosition) * -1.0f;
+                    LerpToPosition(v);
                 }
             }
         }
@@ -129,7 +139,7 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
 
     private void LerpToPosition(float position)
     {
-        float newVal = Mathf.Lerp(GetValue(contentViewRect.anchoredPosition), position, Time.deltaTime * 10f);
+        float newVal = Mathf.Lerp(GetValue(contentViewRect.anchoredPosition), position, Time.deltaTime * 5f);
 
         contentViewRect.anchoredPosition = ModifyVector(contentViewRect.anchoredPosition, newVal);
     }
@@ -190,7 +200,7 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
         }
 
         // if Child Objects are not enought to width or height, cloning it for size fit
-        if (childLen * childSize < scrollRectSize)
+        if (childLen <= 3)
         {
             List<GameObject> clones = new List<GameObject>();
 
@@ -201,7 +211,7 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
 
             int len = clones.Count;
 
-            while (childLen * childSize - childSize / 2 < scrollRectSize)
+            while (childLen <= 3)
             {
                 for (int i = 0; i < len; ++i)
                 {
@@ -216,7 +226,8 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour
         yield return new WaitForEndOfFrame();
 
         var v = Camera.main.ScreenToWorldPoint(contentViewRect.rect.size);
-        dest = GetValue(v) / 3;
+        dest = GetValue(v) / 2.0f;
+        childWorldSize = dest / childLen;
         //ResetPivotAndPosition();
     }
     #endregion
