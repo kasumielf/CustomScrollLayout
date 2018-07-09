@@ -17,9 +17,12 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour, IEventSystemHa
     [Header("ScrollRect Content Container")]
     public GameObject contentView;
     [Header("ScrollRect Magnetic")]
-    public bool IsMagnetic;
+    public bool IsMagnetic = false;
+    [Header("ScrollRect Infinite")]
+    public bool IsInfinite = true;
     [Header("Initialize on Start")]
     public bool InitOnStart = false;
+
     [SerializeField]
     public OnFocusEvent onFocusedEvent;
 
@@ -33,12 +36,18 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour, IEventSystemHa
     private bool onDrag = false;
     private bool notUseLayout = true;
 
-    private int minIndex;
+    private int currIndex;
+    private int curr;
     private int childLen;
     private float contentViewSize;
     private float childSize;
     private float childWorldSize;
     private float spacing = 0.0f;
+
+    // use for magnetic
+    private float befAnchor;
+    private float aftAnchor;
+
     public float dest = 0.0f;
 
     public float[] childDistance;
@@ -60,6 +69,8 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour, IEventSystemHa
         {
             scrollRect.vertical = IsVertical;
             scrollRect.horizontal = !IsVertical;
+
+            scrollRect.inertia = false;
         }
 
         if (contentView == null)
@@ -92,46 +103,44 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour, IEventSystemHa
 
             for (int i = 0; i < len; ++i)
             {
-                /*if (notUseLayout)
-                {
-                    dest = 3000.0f;
-                }*/
-
                 childReposition[i] = GetValue(selfRect.position) - GetValue(childs[i].position);
                 childDistance[i] = Mathf.Abs(childReposition[i]);
 
-                if (childReposition[i] > dest)
+                if (IsInfinite)
                 {
-                    var vector = childs[i].anchoredPosition;
-                    IncreaseVector(ref vector, childLen * childSize);
-                    childs[i].anchoredPosition = vector;
-                }
+                    if (childReposition[i] > dest)
+                    {
+                        var vector = childs[i].anchoredPosition;
+                        IncreaseVector(ref vector, childLen * childSize);
+                        childs[i].anchoredPosition = vector;
+                    }
 
-                if (childReposition[i] < dest * -1)
+                    if (childReposition[i] < dest * -1)
+                    {
+                        var vector = childs[i].anchoredPosition;
+                        DecreaseVector(ref vector, childLen * childSize);
+                        childs[i].anchoredPosition = vector;
+                    }
+                }
+            }
+
+            float minDistance = Mathf.Min(childDistance);
+
+            for (int j = 0; j < len; ++j)
+            {
+                if (minDistance == childDistance[j])
                 {
-                    var vector = childs[i].anchoredPosition;
-                    DecreaseVector(ref vector, childLen * childSize);
-                    childs[i].anchoredPosition = vector;
+                    currIndex = j;
+                    onFocusedEvent.Invoke(currIndex);
                 }
             }
 
             if (IsMagnetic)
             {
-                float minDistance = Mathf.Min(childDistance);
-
-                for (int j = 0; j < len; ++j)
-                {
-                    if (minDistance == childDistance[j])
-                    {
-                        minIndex = j;
-                        onFocusedEvent.Invoke(minIndex);
-                    }
-                }
-
                 if (onDrag == false)
                 {
-                    float v = GetValue(childs[minIndex].anchoredPosition) * -1.0f;
-                    LerpToPosition(v);
+                   float v = GetValue(childs[currIndex].anchoredPosition) * -1.0f;
+                   LerpToPosition(v);
                 }
             }
         }
@@ -200,7 +209,7 @@ public abstract class AbstractCustomScrollLayout : MonoBehaviour, IEventSystemHa
         }
 
         // if Child Objects are not enought to width or height, cloning it for size fit
-        if (childLen <= 3)
+        if (childLen <= 3 && IsInfinite)
         {
             List<GameObject> clones = new List<GameObject>();
 
